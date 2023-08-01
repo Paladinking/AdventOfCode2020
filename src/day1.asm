@@ -21,7 +21,7 @@ extern split
 extern file_buffer
 extern file_size
 extern parse_u64_cstr
-extern format_u64
+extern print_u64
 
 extern error_byte
 
@@ -32,7 +32,7 @@ extern GetLastError
 global main
 
 
-; rbx = ptr to out, rcx = ptr to input,
+; rbx = ptr to out, rcx = ptr to input, 
 parse:
 	sub rsp, 8
 	push rbx
@@ -180,37 +180,12 @@ main_solve:
 	call solve
 	cmp rax, 0
 	jne main_free
-	mov rdx, QWORD [file_buffer]
-	mov r8, QWORD [file_size]
-	call format_u64
-	cmp rax, 0
-	jne main_print_first
-	mov rax, 4
-	jmp main_free
-main_print_first:
-	mov rcx, QWORD [file_buffer]
-	mov rdx, rax
-	call print
-	lea rcx, [new_line]
-	mov rdx, 1
-	call print
+	call print_u64
 main_resolve:
 	call resolve
-	mov rdx, QWORD [file_buffer]
-	mov r8, QWORD [file_size]
-	call format_u64
 	cmp rax, 0
-	jne main_print_second
-	mov rax, 4
-	jmp main_free
-main_print_second:
-	mov rcx, QWORD [file_buffer]
-	mov rdx, rax
-	call print
-	lea rcx, [new_line]
-	mov rdx, 1
-	call print
-main_free_end:
+	jne main_free
+	call print_u64
 	xor rax, rax
 main_free:
 	mov QWORD [rsp + 32], rax
