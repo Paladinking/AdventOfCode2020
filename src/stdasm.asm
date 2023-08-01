@@ -35,6 +35,7 @@ global memcopy
 global parse_u64_cstr
 global parse_i64_cstr
 global format_u64
+global print_u64
 
 extern GetProcessHeap
 extern HeapAlloc
@@ -177,19 +178,17 @@ setup_exit:
 	add rsp, 56
 	ret
 
-; Converts a null-terminated string to a 64 bit unsigned
-; rcx: ptr, will point at null after.
+; Converts a string to a 64 bit unsigned.
+; rcx: ptr, will point at first non-number after.
 parse_u64_cstr:
 	xor rax, rax
 	mov r9, 10
 	mov r8b, BYTE [rcx]
-	cmp r8b, 0
-	je parse_u64_cstr_error
-parse_u64_cstr_loop:
 	cmp r8b, 0x30
 	jb parse_u64_cstr_error
 	cmp r8b, 0x39
 	ja parse_u64_cstr_error
+parse_u64_cstr_loop:
 	sub r8b, 0x30
 	mul r9
 	jc parse_u64_cstr_error
@@ -197,9 +196,11 @@ parse_u64_cstr_loop:
 	add rax, r8
 	inc rcx
 	mov r8b, BYTE [rcx]
-	cmp r8b, 0
-	jne parse_u64_cstr_loop
-	jmp parse_u64_cstr_exit
+	cmp r8b, 0x30 
+	jb parse_u64_cstr_exit
+	cmp r8b, 0x39
+	ja parse_u64_cstr_exit
+	jmp parse_u64_cstr_loop
 parse_u64_cstr_error:
 	mov BYTE [error_byte], PARSE_INT_ERROR
 parse_u64_cstr_exit:
@@ -267,7 +268,18 @@ format_u64_exit:
 	mov rax, rbx
 	pop rbx
 	ret
-	
+
+print_u64:
+	sub rsp, 72
+	lea rdx, [rsp + 51]
+	mov r8, 20
+	call format_u64
+	lea rcx, [rsp + 51]
+	lea rdx, [rax + 1]
+	mov BYTE [rcx + rax], 0xA
+	call print	
+	add rsp, 72
+	ret
 
 ; stdcall DWORD strlen(BYTE* string)
 ; Returns the length of a given null-terminated string.
