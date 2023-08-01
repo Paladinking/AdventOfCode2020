@@ -31,6 +31,124 @@ extern GetLastError
 
 global main
 
+
+; rbx = ptr to out, rcx = ptr to input,
+parse:
+	sub rsp, 8
+	push rbx
+	push rdi
+	lea rdi, [rbx + 8 * rdi]
+parse_loop:
+	cmp rbx, rdi
+	je parse_done
+	call parse_u64_cstr
+	cmp BYTE [error_byte], PARSE_INT_ERROR
+	jne parse_loop_next
+	mov rax, 2
+	jmp parse_exit
+parse_loop_next:
+	mov QWORD [rbx], rax
+	add rbx, 8
+	inc rcx
+	jmp parse_loop
+parse_done:
+	xor rax, rax
+parse_exit:
+	pop rdi
+	pop rbx
+	add rsp, 8
+	ret
+
+; rbx = ptr to numbers, rdi = numbers count
+; res in rcx, rax = 0 on succes
+solve:
+	sub rsp, 8
+	push rbx
+	push rdi
+	lea rcx, [rbx + 8]
+	lea rdi, [rbx + 8 * rdi]
+solve_loop:
+	cmp rbx, rdi
+	je solve_fail
+solve_loop_2:
+	cmp rcx, rdi
+	je solve_loop_next
+	mov r8, QWORD [rbx]
+	add r8, QWORD [rcx]
+	cmp r8, 2020
+	je solve_done
+	add rcx, 8
+	jmp solve_loop_2
+solve_loop_next:
+	add rbx, 8
+	lea rcx, [rbx + 8]
+	jmp solve_loop
+solve_done:
+	mov rax, QWORD [rbx]
+	mov rcx, QWORD [rcx]
+	mul rcx
+	mov rcx, rax
+	xor rax, rax
+	jmp solve_exit
+solve_fail:
+	mov rax, 3
+solve_exit:
+	pop rdi
+	pop rbx
+	add rsp, 8
+	ret
+
+
+; rbx = ptr to numbers, rdi = numbers count
+; res in rcx, rax = 0 on succes
+resolve:
+	sub rsp, 8
+	push rbx
+	push rdi
+	lea rcx, [rbx + 8]
+	lea rdx, [rbx + 16]
+	lea rdi, [rbx + 8 * rdi]
+resolve_loop:
+	cmp rbx, rdi
+	je resolve_fail
+resolve_loop_2:
+	cmp rcx, rdi
+	je resolve_loop_next
+resolve_loop_3:
+	cmp rdx, rdi
+	je resolve_loop_2_next
+	mov r8, QWORD [rbx]
+	add r8, QWORD [rcx]
+	add r8, QWORD [rdx]
+	cmp r8, 2020
+	je resolve_done
+	add rdx, 8
+	jmp resolve_loop_3
+resolve_loop_2_next:
+	add rcx, 8
+	lea rdx, [rcx + 8]
+	jmp resolve_loop_2
+resolve_loop_next:
+	add rbx, 8
+	lea rcx, [rbx + 8]
+	lea rdx, [rbx + 16]
+	jmp resolve_loop
+resolve_done:
+	mov rax, QWORD [rbx]
+	mul QWORD [rdx]
+	mul QWORD [rcx]
+	mov rcx, rax
+	xor rax, rax
+	jmp resolve_exit
+resolve_fail:
+	mov rax, 3
+resolve_exit:
+	pop rdi
+	pop rbx
+	add rsp, 8
+	ret
+
+
 main:
 	push rbx
 	push rdi
@@ -53,57 +171,39 @@ main:
 	jmp main_exit
 main_parse:
 	mov rcx, QWORD [file_buffer]
-	lea rdi, [rbx + 8 * rdi]
-main_parse_loop:
-	cmp rbx, rdi
-	je main_solve
-	call parse_u64_cstr
-	cmp BYTE [error_byte], PARSE_INT_ERROR
-	jne main_parse_loop_inc
-	mov rax, 2
-	jmp main_free
-main_parse_loop_inc:
-	mov QWORD [rbx], rax
-	add rbx, 8
-	inc rcx
-	jmp main_parse_loop
+	call parse
+	cmp rax, 0
+	jne main_free
 main_solve:
 	mov rbx, QWORD [numbers]
-	lea rcx, [rbx + 8]
 	mov rdi, QWORD [numbers_count]
-	lea rdi, [rbx + 8 * rdi]
-main_solve_loop:
-	cmp rbx, rdi
-	je main_solve_fail
-main_solve_loop_inner:
-	cmp rcx, rdi
-	je main_solve_loop_next_outer
-	mov r8, QWORD [rbx]
-	add r8, QWORD [rcx]
-	cmp r8, 2020
-	je main_solve_done
-	add rcx, 8
-	jmp main_solve_loop_inner
-main_solve_loop_next_outer:
-	add rbx, 8
-	lea rcx, [rbx + 8]
-	jmp main_solve_loop
-main_solve_fail:
-	mov rax, 3
-	jmp main_free
-main_solve_done:
-	mov rax, QWORD [rbx]
-	mov rcx, QWORD [rcx]
-	mul rcx
-	mov rcx, rax
+	call solve
+	cmp rax, 0
+	jne main_free
 	mov rdx, QWORD [file_buffer]
 	mov r8, QWORD [file_size]
 	call format_u64
 	cmp rax, 0
-	jne main_print
+	jne main_print_first
 	mov rax, 4
 	jmp main_free
-main_print:
+main_print_first:
+	mov rcx, QWORD [file_buffer]
+	mov rdx, rax
+	call print
+	lea rcx, [new_line]
+	mov rdx, 1
+	call print
+main_resolve:
+	call resolve
+	mov rdx, QWORD [file_buffer]
+	mov r8, QWORD [file_size]
+	call format_u64
+	cmp rax, 0
+	jne main_print_second
+	mov rax, 4
+	jmp main_free
+main_print_second:
 	mov rcx, QWORD [file_buffer]
 	mov rdx, rax
 	call print
