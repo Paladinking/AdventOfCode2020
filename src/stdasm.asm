@@ -29,13 +29,18 @@ global file_size
 global setup
 global print
 global split
+global split_on
 global strlen
 global strcmp
+global memcmp
 global memcopy
 global parse_u64_cstr
 global parse_i64_cstr
 global format_u64
 global print_u64
+global strfind
+global strreplace
+global strlist_contains
 
 extern GetProcessHeap
 extern HeapAlloc
@@ -91,9 +96,10 @@ print:
 	add rsp, 40
 	ret
 
-; Buffer rcx, len rdx
+; Buffer rcx, len rdx (not including null)
 ; Returns number of strings
 ; null-terminates at '\n'.
+; Original string should be null-terminated
 split:
 	mov rax, 1
 	add rdx, rcx
@@ -109,6 +115,49 @@ split_loop:
 	jmp split_loop
 split_exit:
 	ret
+
+; In-buffer rcx, len rdx, string to split on r8.
+; Returns number of strings.
+split_on:
+	push rbx
+	push rsi
+	push rdi
+	push r12
+	push r13
+	mov rbx, rcx
+	lea rsi, [rcx + rdx]
+	mov rdi, r8
+	mov r12, 1
+	mov rcx, r8
+	call strlen
+	mov r13, rax
+	inc rsi
+	sub rsi, r13
+split_on_loop:
+	cmp rbx, rsi
+	je split_on_exit
+	mov rcx, rbx
+	mov rdx, rdi
+	mov r8, r13
+	call memcmp
+	cmp eax, 0
+	jne split_on_next
+	mov BYTE [rbx], 0x0
+	add rbx, r13
+	inc r12
+	jmp split_on_loop
+split_on_next:
+	inc rbx
+	jmp split_on_loop
+split_on_exit:
+	mov rax, r12
+	pop r13
+	pop r12
+	pop rdi
+	pop rsi
+	pop rbx
+	ret
+
 
 ; Get heap, reads input into file_buffer, 
 ; size into file_size, gets std_handle
@@ -310,6 +359,24 @@ memcopy:
 memcopy_exit:
 	ret
 
+
+; rcx: buffer 1, rdx: buffer 2, r8: len
+memcmp:
+	xor eax, eax
+	add r8, rcx
+memcmp_loop:
+	cmp rcx, r8
+	je memcmp_exit
+	mov al, BYTE [rcx]
+	sub al, BYTE [rdx]
+	jne memcmp_exit
+	inc rcx
+	inc rdx
+	jmp memcmp_loop
+memcmp_exit:
+	movsx eax, al
+	ret
+
 ; Compare two null-terminated strings
 ; Destroys: rcx, rdx, r8, r9, rax
 strcmp:
@@ -317,16 +384,86 @@ strcmp:
 	mov r9b, BYTE [rdx]
 	mov al, r8b
 	sub al, r9b
-	jne strcmp_end
+	jne strcmp_exit
 	cmp r8b, 0
-	je strcmp_end
+	je strcmp_exit
 	cmp r9b, 0
-	je strcmp_end
+	je strcmp_exit
 	inc rcx
 	inc rdx
 	jmp strcmp
-strcmp_end:
+strcmp_exit:
 	movsx eax, al
+	ret
+
+; rcx = ptr to string, dl = BYTE to replace, r8b = BYTE to write
+strreplace:
+	cmp BYTE [rcx], 0x0
+	je strreplace_end
+	cmp BYTE [rcx], dl
+	jne strreplace_next
+	mov BYTE [rcx], r8b
+strreplace_next:
+	inc rcx
+	jmp strreplace
+strreplace_end:
 	ret
 	
 	
+
+; rcx = ptr to null-terminated input string
+; dl = BYTE to find 
+; Returns 0 on fail, ptr on find
+strfind:
+	xor rax, rax
+strfind_loop:
+	cmp BYTE [rcx], dl
+	je strfind_found
+	cmp BYTE [rcx], 0
+	je strfind_exit
+	inc rcx
+	jmp strfind_loop
+strfind_found:
+	mov rax, rcx
+strfind_exit:
+	ret
+	
+
+; rcx = null-terminated input string
+; rdx = ptr to string set
+; r8 = size of string set
+; Return 0 on fail, ptr on find
+strlist_contains:
+	push rsi
+	push rdi
+	push rbx
+	mov rsi, rcx
+	mov rdi, rdx
+	mov rbx, r8
+strlist_contains_loop:
+	cmp rbx, 0
+	je strlist_contains_not_found
+	mov rcx, rsi
+	mov rdx, rdi
+	call strcmp
+	cmp rax, 0
+	je strlist_contains_found
+strlist_contains_next_loop:
+	cmp BYTE [rdi], 0
+	je strlist_contains_next
+	inc rdi
+	jmp strlist_contains_next_loop
+strlist_contains_next:
+	inc rdi
+	dec rbx
+	jmp strlist_contains_loop
+strlist_contains_found:
+	mov rax, rdi
+	jmp strlist_contains_exit
+strlist_contains_not_found:
+	xor rax, rax
+strlist_contains_exit:
+	pop rbx
+	pop rdi
+	pop rsi
+	ret
