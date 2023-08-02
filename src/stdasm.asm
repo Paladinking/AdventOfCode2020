@@ -291,7 +291,7 @@ format_u64:
 	add r8, r9
 	cmp rax, 0
 	jne format_u64_loop
-	mov BYTE [r9], 0
+	mov BYTE [r9 + 1], 0x30
 	mov rbx, 1
 	jmp format_u64_exit
 format_u64_loop:
