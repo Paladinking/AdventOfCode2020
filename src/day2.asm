@@ -8,24 +8,14 @@ global input
 input: db "..\input\input2.txt", 0
 new_line: db 0xA
 
-section .bss
-
 section .text
 
-extern heap
 extern setup
-extern print
 extern split
 extern file_buffer
 extern file_size
 extern parse_u64_cstr
 extern print_u64
-
-extern error_byte
-
-extern HeapAlloc
-extern HeapFree
-extern GetLastError
 
 global main
 
@@ -93,6 +83,8 @@ main:
 	sub rsp, 32
 	push rsi
 	call setup
+	cmp rax, 0
+	jne main_exit
 	mov rcx, QWORD [file_buffer]
 	mov rdx, QWORD [file_size]
 	call split
@@ -104,6 +96,7 @@ main:
 	call print_u64
 	mov rcx, rsi
 	call print_u64
+main_exit:
 	pop rsi
 	add rsp, 32
 	ret
