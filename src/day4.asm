@@ -220,9 +220,8 @@ valid_passport_loop:
 	add rsi, 1
 	lea rcx, [requred_fields]
 	sub rax, rcx
-	shr rax, 2
 	lea rcx, [field_validations]
-	lea rax, [rcx + 8 * rax]
+	lea rax, [rcx + 2 * rax]
 	mov rcx, rbx
 	call QWORD [rax]
 	cmp eax, 0
