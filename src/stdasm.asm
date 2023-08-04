@@ -7,6 +7,11 @@ default rel
 %define INVALID_HANDLE_VALUE 0xFFFFFFFFFFFFFFFF
 
 %define PARSE_INT_ERROR 101
+%define INVALID_SIZE 102
+
+section .rdata
+listx_contains: 
+dq 0x0, listb_contains, listw_contains, 0x0, listd_contains, 0x0, 0x0, 0x0, listq_contains
 
 section .data
 global error_byte
@@ -41,6 +46,11 @@ global print_u64
 global strfind
 global strreplace
 global strlist_contains
+global list_contains
+global listb_contains
+global listw_contains
+global listd_contains
+global listq_contains
 
 extern GetProcessHeap
 extern HeapAlloc
@@ -427,7 +437,88 @@ strfind_found:
 	mov rax, rcx
 strfind_exit:
 	ret
-	
+
+
+
+; rcx - value
+; rdx - ptr to list
+; r8 - length of list
+; r9 - size of element (1, 2, 4, 8)
+list_contains:
+	push rsi
+	cmp r9, 8
+	ja list_contains_error
+	lea rsi, [listx_contains]
+	lea rsi, [rsi + r9 * 8]
+	cmp QWORD [rsi], 0
+	je list_contains_error
+	call QWORD [rsi]
+	jmp list_contains_exit
+list_contains_error:
+	mov BYTE [error_byte], INVALID_SIZE
+list_contains_exit:
+	pop rsi
+	ret
+
+listb_contains:
+	xor rax, rax
+	lea r8, [rdx + r8]
+listb_contains_loop:
+	cmp rdx, r8
+	je listb_contains_exit
+	cmp cl, BYTE [rdx]
+	je listb_contains_true
+	inc rdx
+	jmp listb_contains_loop
+listb_contains_true:
+	mov rax, rdx
+listb_contains_exit:
+	ret
+
+listw_contains:
+	xor rax, rax
+	lea r8, [rdx + 2 * r8]
+listw_contains_loop:
+	cmp rdx, r8
+	je listw_contains_exit
+	cmp cx, WORD [rdx]
+	je listw_contains_true
+	add rdx, 2
+	jmp listw_contains_loop
+listw_contains_true:
+	mov rax, rdx
+listw_contains_exit:
+	ret
+
+listd_contains:
+	xor rax, rax
+	lea r8, [rdx + 4 * r8]
+listd_contains_loop:
+	cmp rdx, r8
+	je listd_contains_exit
+	cmp ecx, DWORD [rdx]
+	je listd_contains_true
+	add rdx, 4
+	jmp listd_contains_loop
+listd_contains_true:
+	mov rax, rdx
+listd_contains_exit:
+	ret
+
+listq_contains:
+	xor rax, rax
+	lea r8, [rdx + 8 * r8]
+listq_contains_loop:
+	cmp rdx, r8
+	je listq_contains_exit
+	cmp ecx, DWORD [rdx]
+	je listq_contains_true
+	add rdx, 8
+	jmp listq_contains_loop
+listq_contains_true:
+	mov rax, rdx
+listq_contains_exit:
+	ret
 
 ; rcx = null-terminated input string
 ; rdx = ptr to string set
