@@ -16,81 +16,58 @@ extern print_u64
 
 extern file_buffer
 extern file_size
-extern listb_contains
 
 global main
 
 
 ; rcx = ptr to group
 count_group:
-	sub rsp, 40
-	push rsi
-	push rbx
-	mov rbx, rcx
-	xor rsi, rsi
+	mov r8, rcx
+	xor rdx, rdx
 count_group_loop:
-	mov cl, BYTE [rbx]
+	mov cl, BYTE [r8]
 	cmp cl, 0
 	je count_group_exit
-	cmp cl, 0x61
-	jb count_group_next
-	cmp cl, 0x7a
-	ja count_group_next
-	lea rdx, [rsp + 16]
-	mov r8, rsi
-	call listb_contains
-	cmp rax, 0
-	jne count_group_next
-	lea rdx, [rsp + rsi + 16]
-	mov cl, BYTE [rbx]
-	mov BYTE [rdx], cl
-	inc rsi
-count_group_next:
-	inc rbx
+	inc r8
+	cmp cl, 0xA
+	je count_group_loop
+	sub cl, 0x61
+	mov rax, 1
+	shl rax, cl
+	or  rdx, rax
 	jmp count_group_loop
 count_group_exit:
-	mov rax, rsi
-	mov rcx, rbx
-	pop rbx
-	pop rsi
-	add rsp, 40
+	popcnt rax, rdx
+	mov rcx, r8
 	ret
 
 
 count_group_all:
-	sub rsp, 40
-	push rsi
-	push rbx
-	mov rbx, rcx
-	mov rsi, 1
-	vpxor ymm0, ymm0
-	vmovdqu YWORD [rsp + 16], ymm0
+	mov r9, rcx
+	mov r8, 0xffffffffffffffff
+	xor rdx, rdx
 count_group_all_loop:
-	mov cl, BYTE [rbx]
+	mov cl, BYTE [r9]
 	cmp cl, 0
 	je count_group_all_sum
+	inc r9
 	cmp cl, 0xA
 	jne count_group_all_az
-	inc rsi
-	jmp count_group_all_next
+count_group_all_inc:
+	and r8, rdx
+	xor rdx, rdx
+	jmp count_group_all_loop
 count_group_all_az:
 	sub cl, 0x61
-	and rcx, 0xff
-	inc BYTE [rsp + rcx + 16]
-count_group_all_next:
-	inc rbx
+	mov rax, 1
+	shl rax, cl
+	or rdx, rax
 	jmp count_group_all_loop
 count_group_all_sum:
-	movq xmm0, rsi
-	vpbroadcastb ymm0, xmm0
-	vpcmpeqb ymm0, YWORD [rsp + 16]
-	vpmovmskb rax, ymm0
-	popcnt rax, rax 
+	and r8, rdx
+	popcnt rax, r8 
 count_group_all_exit:
-	mov rcx, rbx
-	pop rbx
-	pop rsi
-	add rsp, 40
+	mov rcx, r9
 	ret
 
 
@@ -140,8 +117,8 @@ main:
 	call count_answers
 	mov rcx, rax
 	call print_u64
-main_exit:
 	xor rax, rax
+main_exit:
 	pop rsi
 	add rsp, 32
 	ret
