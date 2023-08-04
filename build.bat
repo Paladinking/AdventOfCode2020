@@ -1,16 +1,30 @@
 @echo off
+@setlocal
 pushd %~dp0
+set CUR_DAY=6
 nasm -fwin64 src\stdasm.asm -o build\stdasm.obj
-nasm -fwin64 src\day1.asm -o build\day1.obj
-nasm -fwin64 src\day2.asm -o build\day2.obj
-nasm -fwin64 src\day3.asm -o build\day3.obj
-nasm -fwin64 src\day4.asm -o build\day4.obj
-cl build\day1.obj build\stdasm.obj /Fe:bin\day1.exe Kernel32.lib /link /NODEFAULTLIB /entry:main >nul 2>&1
-cl build\day2.obj build\stdasm.obj /Fe:bin\day2.exe Kernel32.lib /link /NODEFAULTLIB /entry:main >nul 2>&1
-cl build\day3.obj build\stdasm.obj /Fe:bin\day3.exe Kernel32.lib /link /NODEFAULTLIB /entry:main >nul 2>&1
-cl build\day4.obj build\stdasm.obj /Fe:bin\day4.exe Kernel32.lib /link /NODEFAULTLIB /entry:main >nul 2>&1
-gcc build\day1.obj build\stdasm.obj -o bin\day1-gcc.exe -nostdlib -lkernel32 --entry=main
-gcc build\day2.obj build\stdasm.obj -o bin\day2-gcc.exe -nostdlib -lkernel32 --entry=main
-gcc build\day3.obj build\stdasm.obj -o bin\day3-gcc.exe -nostdlib -lkernel32 --entry=main
-gcc build\day4.obj build\stdasm.obj -o bin\day4-gcc.exe -nostdlib -lkernel32 --entry=main
+if "%~1" EQU "all" (
+	for /L %%i in (1, 1, %CUR_DAY%) do (
+		call :build_day %%i
+	)
+	goto :exit
+)
+
+if "%~1" NEQ "" (
+	call :build_day %1
+	goto :exit
+)
+call :build_day %CUR_DAY%
+goto :exit
+
+:build_day
+echo Building day %1...
+nasm -fwin64 src\day%1.asm -o build\day%1.obj
+cl build\day%1.obj build\stdasm.obj /Fe:bin\day%1.exe Kernel32.lib /link /NODEFAULTLIB /entry:main >nul 2>&1
+gcc build\day%1.obj build\stdasm.obj -o bin\day%1-gcc.exe -nostdlib -lkernel32 --entry=main
+exit /b
+
+:exit
+echo Done
 popd
+exit /b
