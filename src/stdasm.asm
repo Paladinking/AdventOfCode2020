@@ -45,6 +45,8 @@ global format_u64
 global print_u64
 global strfind
 global strreplace
+global strlist_extract
+global strlist_sort
 global strlist_contains
 global list_contains
 global listb_contains
@@ -370,6 +372,36 @@ memcopy_exit:
 	ret
 
 
+; Move r8 potentialy overlapping characters from rcx to rdx
+memmove:
+	cmp rcx, rdx
+	je memmove_exit
+	ja memmove_greater
+	lea rcx, [rcx + r8]
+	lea rdx, [rdx + r8]
+memmove_less:
+	cmp r8, 0
+	je memmove_exit
+	dec rcx
+	dec rdx
+	dec r8
+	mov r9b, BYTE [rcx]
+	mov BYTE [rdx], r9b
+	jmp memmove_less
+memmove_greater:
+	cmp r8, 0
+	je memmove_exit
+	mov r9b, BYTE [rcx]
+	mov BYTE [rdx], r9b
+	inc rcx
+	inc rdx
+	dec r8
+	jmp memmove_greater
+memmove_exit:
+	ret
+
+
+
 ; rcx: buffer 1, rdx: buffer 2, r8: len
 memcmp:
 	xor eax, eax
@@ -555,6 +587,124 @@ strlist_contains_not_found:
 	xor rax, rax
 strlist_contains_exit:
 	pop rbx
+	pop rdi
+	pop rsi
+	ret
+
+; Gets a list of pointers from a continuous list of strings.
+; rcx = ptr to output
+; rdx = ptr to string set
+; r8 = length of string set
+strlist_extract:
+	mov r9, rcx
+strlist_extract_loop:
+	cmp r8, 0
+	je strlist_extract_exit
+	mov QWORD [r9], rdx
+	add r9, 8
+	dec r8
+	mov rcx, rdx
+	call strlen
+	add rdx, rax
+	inc rdx
+	jmp strlist_extract_loop
+strlist_extract_exit:
+	ret
+
+; Sorts a list of ptr to null terminated strings
+; rcx = ptr to input
+; rdx = length of input
+strlist_sort:
+	push rbp
+	mov rbp, rsp
+	mov r8, rdx
+	inc rdx
+	shr rdx, 1
+	shl rdx, 4
+	sub rsp, rdx
+	mov rdx, rsp
+	call mergesort
+strlist_sort_exit:
+	mov rsp, rbp
+	pop rbp
+	ret
+
+
+; rcx = ptr to first element of input
+; rdx = ptr to second buffer
+; r8 = length of input
+mergesort:
+	push rsi
+	push rdi
+	push rbp
+	cmp r8, 1
+	je mergesort_exit
+	mov rsi, rcx
+	cmp r8, 2
+	jne mergesort_divide
+	mov rcx, QWORD [rsi]
+	mov rdx, QWORD [rsi + 8]
+	call strcmp
+	cmp eax, 0
+	jle mergesort_exit
+	mov rcx, QWORD [rsi]
+	mov rdx, QWORD [rsi + 8]
+	mov QWORD [rsi + 8], rcx
+	mov QWORD [rsi], rdx
+	jmp mergesort_exit
+mergesort_divide:
+	mov rdi, rdx
+	mov rbp, r8
+	shl r8, 3
+	call memcopy
+	mov rcx, rdi
+	mov rdx, rsi
+	mov r8, rbp
+	shr r8, 1
+	call mergesort
+	mov r8, rbp
+	mov r9, rbp
+	shr r9, 1
+	sub r8, r9
+	lea rcx, [rdi + 8 * r9]
+	mov rdx, rsi
+	call mergesort
+	mov r10, rbp
+	mov r11, rbp
+	shr r10, 1
+	sub r11, r10
+	lea rbp, [rdi + 8 * r10]
+	mov r10, rbp
+	lea r11, [rbp + 8 * r11]
+mergesort_merge:
+	cmp rdi, r10
+	je mergesort_merge_check_second
+	cmp rbp, r11
+	jne mergesort_merge_cmp
+mergesort_merge_first:
+	mov rcx, QWORD [rdi]
+	mov QWORD [rsi], rcx
+	add rsi, 8
+	add rdi, 8
+	jmp mergesort_merge
+mergesort_merge_check_second:
+	cmp rbp, r11
+	je mergesort_exit
+mergesort_merge_second:
+	mov rcx, QWORD [rbp]
+	mov QWORD [rsi], rcx
+	add rsi, 8
+	add rbp, 8
+	jmp mergesort_merge
+mergesort_merge_cmp:
+	mov rcx, QWORD [rdi]
+	mov rdx, QWORD [rbp]
+	call strcmp
+	cmp eax, 0
+	jle mergesort_merge_first
+	jmp mergesort_merge_second
+mergesort_exit:
+	pop rbp
 	pop rdi
 	pop rsi
 	ret
