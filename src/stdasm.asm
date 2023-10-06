@@ -38,6 +38,7 @@ global split_on
 global strlen
 global strcmp
 global memcmp
+global memset
 global memcopy
 global parse_u64_cstr
 global parse_i64_cstr
@@ -54,6 +55,7 @@ global listw_contains
 global listd_contains
 global listq_contains
 global binsearch
+global binsearch_index
 
 extern GetProcessHeap
 extern HeapAlloc
@@ -390,6 +392,16 @@ memcopy:
 memcopy_exit:
 	ret
 
+; Set r8 characters from rcx to dl
+memset:
+	cmp r8, 0
+	je memset_exit
+	mov BYTE [rcx], dl
+	inc rcx
+	dec r8
+	jmp memset
+memset_exit:
+	ret
 
 ; Move r8 potentialy overlapping characters from rcx to rdx
 memmove:
@@ -725,6 +737,25 @@ mergesort_merge_cmp:
 mergesort_exit:
 	pop rbp
 	pop rdi
+	pop rsi
+	ret
+
+; rcx = target string
+; rdx = ptr to string list
+; r8 = size of string list
+; Returns: index to target, or -1
+binsearch_index:
+	push rsi
+	mov rsi, rdx
+	call binsearch
+	cmp rax, 0
+	jne binsearch_index_convert
+	dec rax
+	jmp binsearch_index_exit
+binsearch_index_convert:
+	sub rax, rsi
+	shr rax, 3
+binsearch_index_exit:
 	pop rsi
 	ret
 

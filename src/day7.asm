@@ -8,10 +8,16 @@ global input
 input: db "..\input\input7.txt", 0
 target_bag: db "shiny gold", 0
 
+section .bss
+
+; Array, two byte elements, 0 = unknown, 1 = false, >= 2 true
+bags: resq 1
+
 section .text
 
 extern setup
 extern print_u64
+extern parse_u64_cstr
 extern split
 extern split_at
 extern strlist_extract
@@ -19,7 +25,8 @@ extern strlist_sort
 extern strfind
 extern strlen
 extern strcmp
-extern binsearch
+extern binsearch_index
+extern memset
 
 extern file_buffer
 extern file_size
@@ -28,18 +35,29 @@ extern HeapAlloc
 
 global main
 
-; rcx = ptr to line (first char of name)
+; rcx = index to line
 ; rsi = ptr to bag list
 ; rdi = total number of bags
 can_hold_bag:
 	push rbp
 	push rbx
+	push r12
+	push r13
 	sub rsp, 8
-	mov rbp, rcx
+	mov r12, rcx
+	mov rbp, QWORD [rsi + 8 * r12]
+	mov rcx, QWORD [bags]
+	cmp DWORD [rcx + 8 * r12], 0
+	jne can_hold_bag_exit
+can_hold_bag_unknown:
+	inc DWORD [rcx + 8 * r12]
+	mov rcx, rbp
 	lea rdx, [target_bag]
 	call strcmp
 	cmp eax, 0
-	je can_hold_bag_true
+	jne can_hold_bag_not_target
+	mov rcx, QWORD [bags]
+	inc DWORD [rcx + 8 * r12]
 can_hold_bag_not_target:
 	mov rcx, rbp
 	call strlen
@@ -50,18 +68,16 @@ can_hold_bag_not_target:
 	call strfind
 	lea rcx, [rax + 1]
 	call strfind
-	lea rbx, [rax + 1]
-	cmp BYTE [rbx], "n"
-	je can_hold_bag_false
-	cmp BYTE [rbx], "y"
-	je can_hold_bag_true
+	cmp BYTE [rax + 1], "n"
+	je can_hold_bag_exit
 can_hold_bag_loop:
 	lea rbp, [rax + 1]
 	mov rcx, rbp
-	mov dl, " "
-	call strfind
-	lea rbp, [rax + 1]
+	call parse_u64_cstr
+	lea rbp, [rcx + 1]
+	mov r13, rax
 	mov rcx, rbp
+	mov dl, " "
 	call strfind
 	lea rcx, [rax + 1]
 	call strfind
@@ -70,13 +86,18 @@ can_hold_bag_loop:
 	lea rbp, [rax + 1]
 	mov rdx, rsi
 	mov r8, rdi
-	call binsearch
-	mov rcx, QWORD [rax]
+	call binsearch_index
+	mov rcx, rax
+	mov rbx, rax
 	call can_hold_bag
-	cmp eax, 0
-	je can_hold_bag_continue
-	mov BYTE [rbx], "y"
-	jmp can_hold_bag_true
+	mov rcx, QWORD [bags]
+	mov eax, DWORD [rcx + 8 * rbx + 4]
+	mul r13d
+	add eax, r13d
+	add DWORD [rcx + 8 * r12 + 4], eax
+	cmp DWORD [rcx + 8 * rbx], 1
+	jbe can_hold_bag_continue
+	inc DWORD [rcx + 8 * r12]
 can_hold_bag_continue:
 	mov rcx, rbp
 	mov dl, ","
@@ -84,18 +105,14 @@ can_hold_bag_continue:
 	inc rax
 	cmp rax, 1
 	jne can_hold_bag_loop
-	mov BYTE [rbx], "n"
-can_hold_bag_false:
-	xor rax, rax
-	jmp can_hold_bag_exit
-can_hold_bag_true:
-	mov rax, 1
 can_hold_bag_exit:
 	add rsp, 8
+	pop r13
+	pop r12
 	pop rbx
 	pop rbp
 	ret
-	
+
 
 ; rsi = ptr to first 
 ; rdi = total number of lines
@@ -142,7 +159,18 @@ main:
 	cmp rax, 0
 	je main_exit
 	mov rsi, rax
+	mov rcx, QWORD [heap]
+	xor rdx, rdx
+	lea r8, [rdi * 8]
+	call HeapAlloc
+	cmp rax, 0
+	je main_exit
+	mov QWORD [bags], rax
 	mov rcx, rax
+	xor dl, dl
+	lea r8, [rdi * 8]
+	call memset
+	mov rcx, rsi
 	mov rdx, QWORD [file_buffer]
 	mov r8, rdi
 	call strlist_extract
@@ -154,18 +182,29 @@ main:
 	xor r12, r12
 main_loop:
 	cmp rbp, rdi
-	je main_print
-	mov rcx, QWORD [rsi + 8 * rbp]
+	je main_count
+	mov rcx, rbp
 	call can_hold_bag
-	cmp rax, 0
-	je main_loop_false
+	mov rcx, QWORD [bags]
+	mov eax, DWORD [rcx + 8 * rbp]
+	cmp eax, 1
+	jbe main_loop_false
 	inc r12
 main_loop_false:
 	inc rbp
 	jmp main_loop
+main_count:
+	lea rcx, [target_bag]
+	mov rdx, rsi
+	mov r8, rdi
+	call binsearch_index
+	mov rcx, QWORD [bags]
+	mov ebp, DWORD [rcx + 8 * rax + 4]
 main_print:
 	dec r12
 	mov rcx, r12
+	call print_u64
+	mov rcx, rbp
 	call print_u64
 main_exit:
 	xor rax, rax
