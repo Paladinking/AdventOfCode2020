@@ -1,12 +1,20 @@
 @echo off
 @setlocal
 pushd %~dp0
-set CUR_DAY=6
+set CUR_DAY=7
 nasm -fwin64 src\stdasm.asm -o build\stdasm.obj
+
 if "%~1" EQU "all" (
 	for /L %%i in (1, 1, %CUR_DAY%) do (
 		call :build_day %%i
 	)
+	goto :exit
+)
+
+if "%~1" EQU "run" (
+	call :build_day %CUR_DAY%
+	cd bin
+	day%CUR_DAY%.exe
 	goto :exit
 )
 

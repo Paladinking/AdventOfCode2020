@@ -53,6 +53,7 @@ global listb_contains
 global listw_contains
 global listd_contains
 global listq_contains
+global binsearch
 
 extern GetProcessHeap
 extern HeapAlloc
@@ -126,6 +127,24 @@ split_loop:
 	mov BYTE [rcx], 0x0
 	jmp split_loop
 split_exit:
+	ret
+
+; char* rcx, char dl
+; Replaces '<dl>' with 0x0
+; Returns number of strings
+split_at:
+	mov rax, 1
+split_at_loop:
+	mov r8b, BYTE [rcx]
+	cmp r8b, 0x0
+	je split_at_exit
+	inc rcx
+	cmp r8b, dl
+	jne split_at_loop
+	inc rax
+	mov BYTE [rcx - 1], 0x0
+	jmp split_at_loop
+split_at_exit:
 	ret
 
 ; In-buffer rcx, len rdx, string to split on r8.
@@ -453,7 +472,7 @@ strreplace_end:
 	
 	
 
-; rcx = ptr to null-terminated input string
+; rcx = null-terminated input string
 ; dl = BYTE to find 
 ; Returns 0 on fail, ptr on find
 strfind:
@@ -708,3 +727,52 @@ mergesort_exit:
 	pop rdi
 	pop rsi
 	ret
+
+; rcx = target string
+; rdx = ptr to string list
+; r8 = size of string list
+; Returns: ptr to target, or null
+binsearch:
+	push rsi
+	push rdi
+	push rbp
+	push r12
+	push r13
+	mov rsi, rcx
+	mov rdi, rdx
+	mov rbp, r8 ; high
+	xor r12, r12 ; low
+binsearch_loop:
+	lea r13, [rbp + r12]
+	shr r13, 1
+	cmp r13, r12
+	je binsearch_last
+	mov rcx, rsi
+	mov rdx, QWORD [rdi + 8 * r13]
+	call strcmp
+	cmp eax, 0
+	je binsearch_found
+	jg binsearch_greater
+	mov rbp, r13
+	jmp binsearch_loop
+binsearch_greater:
+	mov r12, r13
+	jmp binsearch_loop
+binsearch_last:
+	mov rcx, rsi
+	mov rdx, QWORD [rdi + 8 * r13]
+	call strcmp
+	cmp eax, 0
+	je binsearch_found
+	xor rax, rax
+	jmp binsearch_exit
+binsearch_found:
+	lea rax, [rdi + 8 * r13]
+binsearch_exit:
+	pop r13
+	pop r12
+	pop rbp
+	pop rdi
+	pop rsi
+	ret
+
