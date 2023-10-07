@@ -1,7 +1,7 @@
 @echo off
 @setlocal
 pushd %~dp0
-set CUR_DAY=8
+set CUR_DAY=9
 nasm -fwin64 src\stdasm.asm -o build\stdasm.obj
 
 if "%~1" EQU "all" (
