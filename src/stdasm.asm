@@ -37,6 +37,7 @@ global split
 global split_on
 global strlen
 global strcmp
+global stack_alloc
 global memcmp
 global memset
 global memcopy
@@ -303,6 +304,10 @@ parse_i64_cstr_negative:
 	mov rax, r8
 	jmp parse_i64_cstr_exit
 parse_i64_cstr_positive:
+	cmp BYTE [rcx], 0x2b
+	jne parse_i64_cstr_positive_parse
+	inc rcx
+parse_i64_cstr_positive_parse:
 	call parse_u64_cstr
 	cmp rax, 0
 	jns parse_i64_cstr_exit
@@ -757,6 +762,40 @@ binsearch_index_convert:
 	shr rax, 3
 binsearch_index_exit:
 	pop rsi
+	ret
+
+
+; Does not even pretend to follow calling conventions...
+; rax = stack space to allocate
+; afterwards, rsp will have grown to fit allocation
+stack_alloc:
+	add rax, 16	;
+	shr rax, 4	; Align pointer
+	shl rax, 4	; 
+	sub rax, 8	 ; Include ret address
+	call chkstk
+	mov rcx, QWORD [rsp]
+	sub rsp, rax
+	jmp rcx
+
+
+chkstk:
+	push rcx
+	push rax
+	cmp  rax, 0x1000
+	lea  rcx, [rsp + 0x18]
+	jb chkstk_end
+chkstk_loop:
+	sub rcx, 0x1000
+	or qword [rcx], 0
+	sub rax, 0x1000
+	cmp rax, 0x1000
+	ja chkstk_loop
+chkstk_end:
+	sub rcx,rax
+	or  qword [rcx], 0
+	pop rax
+	pop rcx
 	ret
 
 ; rcx = target string
