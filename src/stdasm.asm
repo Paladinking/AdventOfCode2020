@@ -55,7 +55,10 @@ global listb_contains
 global listw_contains
 global listd_contains
 global listq_contains
+global listq_sort
 global binsearch
+global heap_alloc
+global heap_free
 global binsearch_index
 
 extern GetProcessHeap
@@ -101,7 +104,7 @@ file_read_exit:
 	add rsp, 56
 	ret
 
-print:
+print_:
 	sub rsp, 40
 	mov r8, rdx
 	mov rdx, rcx
@@ -111,6 +114,30 @@ print:
 	call WriteConsoleA
 	add rsp, 40
 	ret
+
+; rcx =  ptr to string
+; rdx = length of string
+print:
+	sub rsp, 104
+	mov rax, [gs:0x60]			;
+    mov rax, [rax + 0x20]		; Get stdout
+    mov r10, [rax + 0x28]		;
+	xorps xmm0, xmm0				;
+	movups OWORD [rsp + 80], xmm0	; Zero memory for IO_STATUS_BLOCK
+	xor r8, r8   ; Zero arguments
+	xor r9, r9   ;
+	lea rax, [rsp + 80]		  ;
+	mov QWORD [rsp + 40], rax ; Give ptr to IO_STATUS_BLOCK 	;
+	mov QWORD [rsp + 48], rcx	; Give ptr to string
+	mov QWORD [rsp + 56], rdx ; Give string length
+	xor rdx, rdx ; Zero argument
+	mov QWORD [rsp + 64], r8  ;
+	mov QWORD [rsp + 72], r8  ; Zero arguments
+	mov rax, 0x8 ; syscall number NtWriteFile
+	syscall
+	add rsp, 104
+	ret
+
 
 ; Buffer rcx, len rdx (not including null)
 ; Returns number of strings
@@ -654,12 +681,10 @@ strlist_sort:
 	push rbp
 	mov rbp, rsp
 	mov r8, rdx
-	inc rdx
-	shr rdx, 1
-	shl rdx, 4
-	sub rsp, rdx
+	lea rax, [rdx * 8]
+	call stack_alloc
 	mov rdx, rsp
-	call mergesort
+	call mergesort_str
 strlist_sort_exit:
 	mov rsp, rbp
 	pop rbp
@@ -669,26 +694,26 @@ strlist_sort_exit:
 ; rcx = ptr to first element of input
 ; rdx = ptr to second buffer
 ; r8 = length of input
-mergesort:
+mergesort_str:
 	push rsi
 	push rdi
 	push rbp
 	cmp r8, 1
-	je mergesort_exit
+	je mergesort_str_exit
 	mov rsi, rcx
 	cmp r8, 2
-	jne mergesort_divide
+	jne mergesort_str_divide
 	mov rcx, QWORD [rsi]
 	mov rdx, QWORD [rsi + 8]
 	call strcmp
 	cmp eax, 0
-	jle mergesort_exit
+	jle mergesort_str_exit
 	mov rcx, QWORD [rsi]
 	mov rdx, QWORD [rsi + 8]
 	mov QWORD [rsi + 8], rcx
 	mov QWORD [rsi], rdx
-	jmp mergesort_exit
-mergesort_divide:
+	jmp mergesort_str_exit
+mergesort_str_divide:
 	mov rdi, rdx
 	mov rbp, r8
 	shl r8, 3
@@ -697,14 +722,14 @@ mergesort_divide:
 	mov rdx, rsi
 	mov r8, rbp
 	shr r8, 1
-	call mergesort
+	call mergesort_str
 	mov r8, rbp
 	mov r9, rbp
 	shr r9, 1
 	sub r8, r9
 	lea rcx, [rdi + 8 * r9]
 	mov rdx, rsi
-	call mergesort
+	call mergesort_str
 	mov r10, rbp
 	mov r11, rbp
 	shr r10, 1
@@ -712,38 +737,130 @@ mergesort_divide:
 	lea rbp, [rdi + 8 * r10]
 	mov r10, rbp
 	lea r11, [rbp + 8 * r11]
-mergesort_merge:
+mergesort_str_merge:
 	cmp rdi, r10
-	je mergesort_merge_check_second
+	je mergesort_str_merge_check_second
 	cmp rbp, r11
-	jne mergesort_merge_cmp
-mergesort_merge_first:
+	jne mergesort_str_merge_cmp
+mergesort_str_merge_first:
 	mov rcx, QWORD [rdi]
 	mov QWORD [rsi], rcx
 	add rsi, 8
 	add rdi, 8
-	jmp mergesort_merge
-mergesort_merge_check_second:
+	jmp mergesort_str_merge
+mergesort_str_merge_check_second:
 	cmp rbp, r11
-	je mergesort_exit
-mergesort_merge_second:
+	je mergesort_str_exit
+mergesort_str_merge_second:
 	mov rcx, QWORD [rbp]
 	mov QWORD [rsi], rcx
 	add rsi, 8
 	add rbp, 8
-	jmp mergesort_merge
-mergesort_merge_cmp:
+	jmp mergesort_str_merge
+mergesort_str_merge_cmp:
 	mov rcx, QWORD [rdi]
 	mov rdx, QWORD [rbp]
 	call strcmp
 	cmp eax, 0
-	jle mergesort_merge_first
-	jmp mergesort_merge_second
-mergesort_exit:
+	jle mergesort_str_merge_first
+	jmp mergesort_str_merge_second
+mergesort_str_exit:
 	pop rbp
 	pop rdi
 	pop rsi
 	ret
+
+; sorts a list of qword
+; rcx = ptr to first element
+; rdx = length of input
+listq_sort:
+	push rbp
+	mov rbp, rsp
+	mov r8, rdx
+	lea rax, [rdx * 8]
+	call stack_alloc
+	mov rdx, rsp
+	call mergesort_qword
+listq_sort_exit:
+	mov rsp, rbp
+	pop rbp
+	ret
+
+; rcx = ptr to first element of input
+; rdx = ptr to second buffer
+; r8 = length of input
+mergesort_qword:
+	push rsi
+	push rdi
+	push rbp
+	cmp r8, 1
+	je mergesort_qword_exit
+	mov rsi, rcx
+	cmp r8, 2
+	jne mergesort_qword_divide
+	mov rcx, QWORD [rsi]
+	mov rdx, QWORD [rsi + 8]
+	cmp rcx, rdx
+	jle mergesort_qword_exit
+	mov QWORD [rsi + 8], rcx
+	mov QWORD [rsi], rdx
+	jmp mergesort_qword_exit
+mergesort_qword_divide:
+	mov rdi, rdx
+	mov rbp, r8
+	shl r8, 3
+	call memcopy
+	mov rcx, rdi
+	mov rdx, rsi
+	mov r8, rbp
+	shr r8, 1
+	call mergesort_qword
+	mov r8, rbp
+	mov r9, rbp
+	shr r9, 1
+	sub r8, r9
+	lea rcx, [rdi + 8 * r9]
+	mov rdx, rsi
+	call mergesort_qword
+	mov r10, rbp
+	mov r11, rbp
+	shr r10, 1
+	sub r11, r10
+	lea rbp, [rdi + 8 * r10]
+	mov r10, rbp
+	lea r11, [rbp + 8 * r11]
+mergesort_qword_merge:
+	cmp rdi, r10
+	je mergesort_qword_merge_check_second
+	cmp rbp, r11
+	jne mergesort_qword_merge_cmp
+mergesort_qword_merge_first:
+	mov rcx, QWORD [rdi]
+	mov QWORD [rsi], rcx
+	add rsi, 8
+	add rdi, 8
+	jmp mergesort_qword_merge
+mergesort_qword_merge_check_second:
+	cmp rbp, r11
+	je mergesort_qword_exit
+mergesort_qword_merge_second:
+	mov rcx, QWORD [rbp]
+	mov QWORD [rsi], rcx
+	add rsi, 8
+	add rbp, 8
+	jmp mergesort_qword_merge
+mergesort_qword_merge_cmp:
+	mov rcx, QWORD [rdi]
+	mov rdx, QWORD [rbp]
+	cmp rcx, rdx
+	jle mergesort_qword_merge_first
+	jmp mergesort_qword_merge_second
+mergesort_qword_exit:
+	pop rbp
+	pop rdi
+	pop rsi
+	ret
+
 
 ; rcx = target string
 ; rdx = ptr to string list
@@ -764,6 +881,26 @@ binsearch_index_exit:
 	pop rsi
 	ret
 
+; rcx = size in bytes
+; returns ptr
+heap_alloc:
+	sub rsp, 40
+	mov r8, rcx
+	xor rdx, rdx
+	mov rcx, QWORD [heap]
+	call HeapAlloc
+	add rsp, 40
+	ret
+
+; rcx = ptr
+heap_free:
+	sub rsp, 40
+	mov r8, rcx
+	xor rdx, rdx
+	mov rcx, QWORD [heap]
+	call HeapFree
+	add rsp, 40
+	ret
 
 ; Does not even pretend to follow calling conventions...
 ; rax = stack space to allocate
@@ -774,9 +911,9 @@ stack_alloc:
 	shl rax, 4	; 
 	sub rax, 8	 ; Include ret address
 	call chkstk
-	mov rcx, QWORD [rsp]
 	sub rsp, rax
-	jmp rcx
+	mov rax, QWORD [rsp + rax]
+	jmp rax
 
 
 chkstk:
