@@ -28,8 +28,8 @@ goto :exit
 :build_day
 echo Building day %1...
 nasm -fwin64 src\day%1.asm -o build\day%1.obj
-cl build\day%1.obj build\stdasm.obj /Fe:bin\day%1.exe Kernel32.lib /link /NODEFAULTLIB /entry:main >nul 2>&1
-gcc build\day%1.obj build\stdasm.obj -o bin\day%1-gcc.exe -nostdlib -lkernel32 --entry=main
+cl build\day%1.obj build\stdasm.obj build\parse.obj /Fe:bin\day%1.exe Kernel32.lib /link /NODEFAULTLIB /entry:setup_main >nul 2>&1
+gcc build\day%1.obj build\stdasm.obj build\parse.obj -o bin\day%1-gcc.exe -nostdlib -lkernel32 --entry=setup_main
 exit /b
 
 :exit

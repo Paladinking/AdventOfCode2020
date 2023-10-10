@@ -10,7 +10,6 @@ new_line: db 0xA
 
 section .text
 
-extern setup
 extern split
 extern strlen
 extern file_buffer
@@ -64,11 +63,6 @@ main:
 	push r14
 	push rbx
 	push rsi
-	call setup
-	cmp rax, 0
-	jne main_exit
-	mov rcx, QWORD [file_buffer]
-	mov rdx, QWORD [file_size]
 	call split
 	mov rsi, rax
 	mov rcx, QWORD [file_buffer]

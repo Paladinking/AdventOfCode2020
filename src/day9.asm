@@ -11,7 +11,6 @@ input: db "..\input\input9.txt", 0
 
 section .text
 
-extern setup
 extern print_u64
 extern parse_u64_cstr
 extern split
@@ -143,11 +142,6 @@ main:
 	push rdi
 	mov rbp, rsp
 	sub rsp, 40
-	call setup
-	cmp rax, 0
-	jne main_exit
-	mov rcx, QWORD [file_buffer]
-	mov rdx, QWORD [file_size]
 	call split
 	mov rdi, rax
 	shl rax, 3

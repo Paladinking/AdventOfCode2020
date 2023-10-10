@@ -60,6 +60,7 @@ global binsearch
 global heap_alloc
 global heap_free
 global binsearch_index
+global setup_main
 
 extern GetProcessHeap
 extern HeapAlloc
@@ -73,6 +74,7 @@ extern GetStdHandle
 extern WriteConsoleA
 
 extern input
+extern main
 
 ; Opens a file, char* in rcx, mode in rdx
 file_open:
@@ -219,6 +221,15 @@ split_on_exit:
 	pop rbx
 	ret
 
+setup_main:
+	sub rsp, 40
+	call setup
+	mov rcx, QWORD [file_buffer]
+	mov rdx, QWORD [file_size]
+	call main
+	add rsp, 40
+	ret
+	
 
 ; Get heap, reads input into file_buffer, 
 ; size into file_size, gets std_handle

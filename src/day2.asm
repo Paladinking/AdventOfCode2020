@@ -7,15 +7,17 @@ section .rdata
 global input
 input: db "..\input\input2.txt", 0
 new_line: db 0xA
+format: db "qpqpcppsl", 0x0, 0x0
 
 section .text
 
-extern setup
 extern split
 extern file_buffer
 extern file_size
 extern parse_u64_cstr
 extern print_u64
+extern stack_alloc
+extern parse_lines
 
 global main
 
@@ -82,14 +84,9 @@ parse_exit:
 main:
 	sub rsp, 32
 	push rsi
-	call setup
-	cmp rax, 0
-	jne main_exit
-	mov rcx, QWORD [file_buffer]
-	mov rdx, QWORD [file_size]
 	call split
-	mov rdx, rax
 	mov rcx, QWORD [file_buffer]
+	mov rdx, rax
 	call parse
 	mov rsi, rcx
 	mov rcx, rax

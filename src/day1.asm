@@ -1,12 +1,11 @@
 bits 64
 default rel
 
-%define PARSE_INT_ERROR 101
-
 section .rdata
 global input
 input: db "..\input\input1.txt", 0
-new_line: db 0xA
+format: db "q"
+
 
 section .bss
 numbers: resq 1
@@ -14,7 +13,7 @@ numbers_count: resq 1
 
 section .text
 
-extern heap
+extern stack_alloc
 extern setup
 extern print
 extern split
@@ -22,42 +21,9 @@ extern file_buffer
 extern file_size
 extern parse_u64_cstr
 extern print_u64
-
-extern error_byte
-
-extern HeapAlloc
-extern HeapFree
-extern GetLastError
+extern parse_lines
 
 global main
-
-
-; rbx = ptr to out, rcx = ptr to input, 
-parse:
-	sub rsp, 8
-	push rbx
-	push rdi
-	lea rdi, [rbx + 8 * rdi]
-parse_loop:
-	cmp rbx, rdi
-	je parse_done
-	call parse_u64_cstr
-	cmp BYTE [error_byte], PARSE_INT_ERROR
-	jne parse_loop_next
-	mov rax, 2
-	jmp parse_exit
-parse_loop_next:
-	mov QWORD [rbx], rax
-	add rbx, 8
-	inc rcx
-	jmp parse_loop
-parse_done:
-	xor rax, rax
-parse_exit:
-	pop rdi
-	pop rbx
-	add rsp, 8
-	ret
 
 ; rbx = ptr to numbers, rdi = numbers count
 ; res in rcx, rax = 0 on succes
@@ -152,53 +118,29 @@ resolve_exit:
 main:
 	push rbx
 	push rdi
-	sub rsp, 40
-	call setup
-	mov rcx, QWORD [file_buffer]
-	mov rdx, QWORD [file_size]
+	push rbp
+	mov rbp, rsp
+	sub rsp, 32
 	call split
 	mov QWORD [numbers_count], rax
-	mov rdi, rax
-	mov rcx, QWORD [heap]
-	xor rdx, rdx
-	lea r8, [rax * 8]
-	call HeapAlloc
-	mov QWORD [numbers], rax
-	mov rbx, rax
-	cmp rax, 0
-	jne main_parse
-	mov rax, 1
-	jmp main_exit
-main_parse:
+	shl rax, 3
+	call stack_alloc
 	mov rcx, QWORD [file_buffer]
-	call parse
-	cmp rax, 0
-	jne main_free
+	mov rdx, rsp
+	mov r8, QWORD [numbers_count]
+	lea r9, [format]
+	call parse_lines
 main_solve:
-	mov rbx, QWORD [numbers]
+	mov rbx, rsp
 	mov rdi, QWORD [numbers_count]
 	call solve
-	cmp rax, 0
-	jne main_free
 	call print_u64
-main_resolve:
 	call resolve
-	cmp rax, 0
-	jne main_free
 	call print_u64
-	xor rax, rax
-main_free:
-	mov QWORD [rsp + 32], rax
-	mov rcx, QWORD [heap]
-	xor rdx, rdx
-	mov r8, QWORD [numbers]
-	call HeapFree
-	mov rax, QWORD [rsp + 32]
-	jmp main_exit
-main_end:
 	xor rax, rax
 main_exit:
-	add rsp, 40
+	mov rsp, rbp
+	pop rbp
 	pop rdi
 	pop rbx
 	ret

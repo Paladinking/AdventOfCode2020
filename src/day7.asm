@@ -15,7 +15,6 @@ bags: resq 1
 
 section .text
 
-extern setup
 extern print_u64
 extern parse_u64_cstr
 extern split
@@ -144,11 +143,6 @@ main:
 	push rbp
 	push r12
 	sub rsp, 40
-	call setup
-	cmp rax, 0
-	jne main_exit
-	mov rcx, QWORD [file_buffer]
-	mov rdx, QWORD [file_size]
 	call split
 	mov rcx, QWORD [heap]
 	xor rdx, rdx

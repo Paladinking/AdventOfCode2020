@@ -468,11 +468,10 @@ error_exit:
 	call ExitProcess
 	
 
-; rcx = input buffer
+; rcx = input lines
 ; rdx = output buffer
-; r8 = input size
+; r8 = number of lines
 ; r9 = format buffer
-; Returns number of lines
 parse_lines:
 	push rsi
 	push rdi
@@ -484,9 +483,7 @@ parse_lines:
 	mov rsi, rcx
 	mov rdi, rdx
 	mov rbx, r9
-	mov rdx, r8
-	call split
-	mov r12, rax
+	mov r12, r8
 	mov rcx, rbx
 	call pattern_size
 	mov r13, rax

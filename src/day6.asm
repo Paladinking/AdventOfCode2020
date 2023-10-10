@@ -10,7 +10,6 @@ new_lines: db 0xA, 0xA, 0x0
 
 section .text
 
-extern setup
 extern split_on
 extern print_u64
 
@@ -95,13 +94,8 @@ count_answers_exit:
 	ret
 
 main:
-	sub rsp, 32
 	push rsi
-	call setup
-	cmp rax, 0
-	jne main_exit
-	mov rcx, QWORD [file_buffer]
-	mov rdx, QWORD [file_size]
+	sub rsp, 32
 	lea r8, [new_lines]
 	call split_on
 	mov rsi, rax
@@ -119,6 +113,6 @@ main:
 	call print_u64
 	xor rax, rax
 main_exit:
-	pop rsi
 	add rsp, 32
+	pop rsi
 	ret

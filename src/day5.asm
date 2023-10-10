@@ -13,7 +13,6 @@ seats: resq 1024
 
 section .text
 
-extern setup
 extern split
 extern print_u64
 extern listq_contains
@@ -133,9 +132,6 @@ main:
 	sub rsp, 24
 	push rsi
 	push rbx
-	call setup
-	mov rcx, QWORD [file_buffer]
-	mov rdx, QWORD [file_size]
 	call split
 	mov rcx, QWORD [file_buffer]
 	mov rdx, rax

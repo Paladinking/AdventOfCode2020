@@ -21,7 +21,6 @@ passport_count: resq 1
 
 section .text
 
-extern setup
 extern strlen
 extern split_on
 extern strfind
@@ -288,11 +287,6 @@ parse_exit:
 main:
 	sub rsp, 32
 	push rsi
-	call setup
-	cmp rax, 0
-	jne main_exit
-	mov rcx, QWORD [file_buffer]
-	mov rdx, QWORD [file_size]
 	lea r8, [new_lines]
 	call split_on
 	mov QWORD [passport_count], rax
