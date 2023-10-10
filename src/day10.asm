@@ -10,16 +10,13 @@ format: db "q", 0
 
 section .text
 
-extern setup
 extern print_u64
-extern parse_u64_cstr
 extern split
 extern memset
 extern stack_alloc
 extern listq_sort
 
 extern file_buffer
-extern file_size
 extern parse_lines
 
 global main
