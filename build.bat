@@ -1,8 +1,9 @@
 @echo off
 @setlocal
 pushd %~dp0
-set CUR_DAY=9
+set CUR_DAY=10
 nasm -fwin64 src\stdasm.asm -o build\stdasm.obj
+nasm -fwin64 src\parse.asm -o build\parse.obj
 
 if "%~1" EQU "all" (
 	for /L %%i in (1, 1, %CUR_DAY%) do (
