@@ -1,7 +1,7 @@
 @echo off
 @setlocal
 pushd %~dp0
-set CUR_DAY=11
+set CUR_DAY=12
 for /f tokens^=^* %%i  in ('where fasm') do set INCLUDE=%%~dpiINCLUDE;%INCLUDE%
 
 if "%~1" EQU "all" (

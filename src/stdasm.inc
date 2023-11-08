@@ -775,6 +775,8 @@ chkstk:
 setup_main:
 	sub rsp, 40
 	call setup
+	test rax, rax
+	jne .exit
 	mov rcx, QWORD [file_buffer]
 	mov rdx, QWORD [file_size]
 	call main
