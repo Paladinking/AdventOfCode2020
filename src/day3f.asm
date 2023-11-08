@@ -1,36 +1,24 @@
-bits 64
-default rel
+include 'format.inc'
 
-%define PARSE_INT_ERROR 101
-
-section .rdata
-global input
+section '.rdata' data readable
 input: db "..\input\input3.txt", 0
 new_line: db 0xA
 
-section .text
+include 'stddata.inc'
 
-extern split
-extern strlen
-extern file_buffer
-extern file_size
-extern print_u64
+section '.text' code readable executable
 
-global main
+include 'stdasm.inc'
 
 ; rcx = base_ptr, rdx = rows, r8 = columns
 ; r13 = down, r14 = right
-parse:
+proc parse uses r12 rdi rbx rsi
 	sub rsp, 8
-	push r12
-	push rdi
-	push rbx
-	push rsi
 	mov rbx, rdx
 	xor r12, r12
 	xor rsi, rsi
 	xor r9, r9
-parse_loop:
+ .loop:
 	; Get offset = row * (columns + 1) + (col % columns)
 	xor rdx, rdx
 	mov rax, rsi
@@ -41,33 +29,26 @@ parse_loop:
 	add rax, rdi
 
 	cmp BYTE [rcx + rax], 0x23
-	jne parse_loop_next
+	jne .loop_next
 	inc r12
-parse_loop_next:
+ .loop_next:
 	add r9, r13
 	add rsi, r14
 	cmp r9, rbx
-	jbe parse_loop
-parse_exit:
+	jbe .loop
+ .exit:
 	mov rax, r12
-	pop rsi
-	pop rbx
-	pop rdi
-	pop r12
 	add rsp, 8
 	ret
+endp
 
-main:
-	sub rsp, 16
-	push r13
-	push r14
-	push rbx
-	push rsi
+proc main uses r13 r14 rbx rsi
+	local result:QWORD
 	call split
 	mov rsi, rax
 	mov rcx, QWORD [file_buffer]
 	call strlen
-main_one_parse:
+ .one_parse:
 	mov rcx, QWORD [file_buffer]
 	mov rbx, rax
 	mov rdx, rsi
@@ -75,51 +56,47 @@ main_one_parse:
 	mov r13, 1
 	mov r14, 3
 	call parse
-	mov QWORD [rsp + 8], rax
+	mov QWORD [result], rax
 	mov rcx, rax
 	call print_u64
-main_two_parse:
+ .two_parse:
 	mov rcx, QWORD [file_buffer]
 	mov rdx, rsi
 	mov r8, rbx
 	mov r13, 1
 	mov r14, 1
 	call parse
-	mul QWORD [rsp + 8]
-	mov QWORD [rsp + 8], rax
-main_three_parse:
+	mul QWORD [result]
+	mov QWORD [result], rax
+ .three_parse:
 	mov rcx, QWORD [file_buffer]
 	mov rdx, rsi
 	mov r8, rbx
 	mov r13, 1
 	mov r14, 5
 	call parse
-	mul QWORD [rsp + 8]
-	mov QWORD [rsp + 8], rax
-main_four_parse:
+	mul QWORD [result]
+	mov QWORD [result], rax
+ .four_parse:
 	mov rcx, QWORD [file_buffer]
 	mov rdx, rsi
 	mov r8, rbx
 	mov r13, 1
 	mov r14, 7
 	call parse
-	mul QWORD [rsp + 8]
-	mov QWORD [rsp + 8], rax
-main_five_parse:
+	mul QWORD [result]
+	mov QWORD [result], rax
+ .five_parse:
 	mov rcx, QWORD [file_buffer]
 	mov rdx, rsi
 	mov r8, rbx
 	mov r13, 2
 	mov r14, 1
 	call parse
-	mul QWORD [rsp + 8]
+	mul QWORD [result]
 	mov rcx, rax
 	call print_u64
-main_exit:
+ .exit:
 	xor rax, rax
-	pop rsi
-	pop rbx
-	pop r14
-	pop r13
-	add rsp, 16
 	ret
+endp

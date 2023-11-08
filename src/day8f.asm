@@ -1,94 +1,67 @@
-bits 64
-default rel
+include 'format.inc'
 
-%define PARSE_INT_ERROR 101
-
-section .rdata
-global input
+section '.rdata' data readable
 input: db "..\input\input8.txt", 0
 
-section .text
+include 'stddata.inc'
 
-extern print_u64
-extern parse_i64_cstr
-extern split
-extern stack_alloc
-extern memset
-extern strlist_extract
+section '.text' code readable executable
 
-extern file_buffer
-extern file_size
-extern heap
-
-global main
+include 'stdasm.inc'
 
 ; rcx = ptr to input
 ; rdx = ptr to save visited
 ; r8 = length of program
 ; rax => acc, rcx => index
-parse:
-	push rsi
-	push rdi
-	push rbx
-	push rbp
-	push r12
+proc parse uses rsi rdi rbx rbp r12
 	mov rsi, rcx
 	mov rdi, rdx
 	mov r12, r8
 	xor rbx, rbx
 	xor rbp, rbp
-parse_loop:
+ .loop:
 	cmp rbx, r12
-	jae parse_exit
+	jae .exit
 	cmp BYTE [rdi + rbx], 1
-	je parse_exit
+	je .exit
 	mov BYTE [rdi + rbx], 1
 	mov rcx, QWORD [rsi + 8 * rbx]
 	mov edx, DWORD [rcx]
 	cmp edx, "nop "
-	je parse_loop_nop
+	je .loop_nop
 	add rcx, 4
 	cmp edx, "acc "
-	je parse_loop_acc
+	je .loop_acc
 	call parse_i64_cstr
 	add rbx, rax
-	jmp parse_loop
-parse_loop_acc:
+	jmp .loop
+ .loop_acc:
 	call parse_i64_cstr
 	add rbp, rax
-parse_loop_nop:
+ .loop_nop:
 	inc rbx
-	jmp parse_loop
-parse_exit:
+	jmp .loop
+ .exit:
 	mov rax, rbp
 	mov rcx, rbx
-	pop r12
-	pop rbp
-	pop rbx
-	pop rdi
-	pop rsi
 	ret
+endp
 
 
 ; rcx = ptr to input
 ; rdx = ptr to save visited
 ; r8 = length of program
 ; returns final acc
-fix_program:
-	push rsi
-	push rdi
-	push rbx
-	push r12
-	push r13
+proc fix_program uses rsi rdi rbx r12 r13
 	mov rsi, rcx
 	mov rdi, rdx
 	mov rbx, r8
 	xor r12, r12
-fix_program_loop:
+ .loop:
 	mov rcx, QWORD [rsi + 8 * r12]
 	mov r13d, DWORD [rcx]
 	cmp r13d, "acc "
-	je fix_program_loop_next
+	je .loop_next
 	mov eax, "jmp "
 	mov edx, "nop "
 	cmp r13d, "nop "
@@ -103,24 +76,17 @@ fix_program_loop:
 	mov r8, rbx
 	call parse
 	cmp rcx, rbx
-	jae fix_program_exit
+	jae .exit
 	mov rcx, QWORD [rsi + 8 * r12]
 	mov DWORD [rcx], r13d
-fix_program_loop_next:
+ .loop_next:
 	inc r12
-	jmp fix_program_loop
-fix_program_exit:
-	pop r13
-	pop r12
-	pop rbx
-	pop rdi
-	pop rsi
+	jmp .loop
+ .exit:
 	ret
+endp
 
-main:
-	push rbp
-	push rdi
-	push rsi
+proc main uses rbp rdi rsi
 	mov rbp, rsp
 	sub rsp, 32
 	call split
@@ -148,9 +114,7 @@ main:
 	mov rcx, rax 
 	call print_u64
 	xor rax, rax
-main_exit:
+ .exit:
 	mov rsp, rbp
-	pop rsi
-	pop rdi
-	pop rbp
 	ret
+endp

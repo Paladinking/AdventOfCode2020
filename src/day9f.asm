@@ -1,126 +1,107 @@
-bits 64
-default rel
+include 'format.inc'
 
-%define PARSE_INT_ERROR 101
+define PREAMBLE 25
 
-%define PREAMBLE 25
-
-section .rdata
-global input
+section '.rdata' data readable
 input: db "..\input\input9.txt", 0
 
-section .text
+include 'stddata.inc'
 
-extern print_u64
-extern parse_u64_cstr
-extern split
-extern stack_alloc
+section '.text' code readable executable
 
-extern file_buffer
-extern file_size
-extern heap
-
-global main
+include 'stdasm.inc'
 
 ; rcx = ptr to input
 ; rdx = ptr to output
 ; r8 = line count
-parse:
-	push rsi
-	push rbx
+proc parse uses rsi rbx
 	sub rsp, 8
 	mov rbx, rdx
 	lea rsi, [rdx + 8 * r8]
-parse_loop:
+ .loop:
 	cmp rbx, rsi
-	je parse_exit
+	je .exit
 	call parse_u64_cstr
 	mov QWORD [rbx], rax
 	inc rcx
 	add rbx, 8
-	jmp parse_loop
-parse_exit:
+	jmp .loop
+ .exit:
 	add rsp, 8
-	pop rbx
-	pop rsi
 	ret
+endp
 
 ; rcx = ptr to PREAMBLE last numbers
 ; rdx = number to check for, remains
 contains_sum:
 	xor r8, r8
-contains_sum_outer:
+ .outer:
 	cmp r8, PREAMBLE
-	je contains_sum_end
+	je .end
 	mov rax, QWORD [rcx + 8 * r8]
 	lea r9, [r8 + 1]
-contains_sum_inner:
+ .inner:
 	cmp r9, PREAMBLE
-	je contains_sum_outer_next
+	je .outer_next
 	mov r10, rax
 	add r10, QWORD [rcx + 8 * r9]
 	inc r9
 	cmp r10, rdx
-	jne contains_sum_inner
+	jne .inner
 	mov rax, 1
-	jmp contains_sum_exit
-contains_sum_outer_next:
+	jmp .exit
+ .outer_next:
 	inc r8
-	jmp contains_sum_outer
-contains_sum_end:
+	jmp .outer
+ .end:
 	xor rax, rax
-contains_sum_exit:
+ .exit:
 	ret
 
 ; rcx = ptr to numbers
 ; Stack gets missaligned if PREAMBLE is even...
-find_number:
-	push rsi
-	push rbx
-	push rbp
+proc find_number uses rsi rbx rbp
 	sub rsp, PREAMBLE * 8 + 8 
 	xor rbx, rbx
 	mov rsi, rcx
-find_number_preamble_loop:
+ .preamble_loop:
 	mov rax, QWORD [rsi + 8 * rbx]
 	mov QWORD [rsp + 8 * rbx], rax
 	inc rbx
 	cmp rbx, PREAMBLE
-	jb find_number_preamble_loop
+	jb .preamble_loop
 	xor rbp, rbp
-find_number_loop:
+ .loop:
 	mov rdx, QWORD [rsi + 8 * rbx]
 	mov rcx, rsp
 	call contains_sum
 	cmp rax, 0
-	je find_number_found
+	je .found
 	mov QWORD [rsp + 8 * rbp], rdx
 	inc rbx
 	inc rbp
 	xor rdx, rdx
 	cmp rbp, PREAMBLE
 	cmove rbp, rdx
-	jmp find_number_loop
-find_number_found:
+	jmp .loop
+ .found:
 	mov rax, rdx
-find_number_exit:
+ .exit:
 	add rsp, PREAMBLE * 8 + 8
-	pop rbp
-	pop rbx
-	pop rsi
 	ret
+endp
 
 ; rcx = ptr to numbers
 ; rdx = number to find
 find_number_range:
 	mov r8, rcx ; base
-find_number_range_loop:
+ .loop:
 	mov rax, QWORD [r8]
 	mov r9, rax
 	mov r10, rax
 	lea rcx, [r8 + 8]
 	mov r8, rcx
-find_number_range_inner:
+ .inner:
 	mov r11, QWORD [rcx]
 	add rax, r11
 	cmp r9, r11
@@ -128,18 +109,16 @@ find_number_range_inner:
 	cmp r10, r11
 	cmova r10, r11
 	cmp rax, rdx
-	je find_number_range_exit
-	ja find_number_range_loop
+	je .exit
+	ja .loop
 	add rcx, 8
-	jmp find_number_range_inner
-find_number_range_exit:
+	jmp .inner
+ .exit:
 	add r9, r10
 	mov rax, r9
 	ret
 
-main:
-	push rbp
-	push rdi
+proc main uses rbp rdi
 	mov rbp, rsp
 	sub rsp, 40
 	call split
@@ -161,8 +140,7 @@ main:
 	mov rcx, rax
 	call print_u64
 	xor rax, rax
-main_exit:
+ .exit:
 	mov rsp, rbp
-	pop rdi
-	pop rbp
 	ret
+endp

@@ -31,11 +31,13 @@ macro export_func [name] {
 	\}
 }
 
-macro extern_call fn_name, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10 { 
+macro extern_call fn_name, [args] {
+	common
 	match =COFF_IMAGE, COFF_IMAGE \{
-		\common \fastcall fn_name, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10
+		\fastcall fn_name, args
 	\}
 	match =TRUE, COFF_IMAGE \{
-		\common \invoke fn_name, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10
+		\invoke fn_name, args
 	\}
 }
+

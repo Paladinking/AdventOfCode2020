@@ -1,10 +1,6 @@
-bits 64
-default rel
+include 'format.inc'
 
-%define PARSE_INT_ERROR 101
-
-section .rdata
-global input
+section '.rdata' data readable
 input: db "..\input\input4.txt", 0
 new_lines: db 0xA, 0xA, 0x0
 
@@ -16,53 +12,38 @@ field_validations: dq validate_byr, validate_iyr, validate_eyr, validate_hgt, va
 
 eye_color_count: dq 7
 eye_color_valid: db "amb", 0x0, "blu", 0x0, "brn", 0x0, "gry", 0x0, "grn", 0x0, "hzl", 0x0, "oth", 0x0
-section .bss
+
+include 'stddata.inc'
+;section '.bss'
 passport_count: resq 1
 
-section .text
+section '.text' code readable executable
 
-extern strlen
-extern split_on
-extern strfind
-extern strreplace
-extern strlist_contains
-extern print_u64
-extern parse_u64_cstr
-
-extern file_buffer
-extern file_size
-extern error_byte
-
-global main
+include 'stdasm.inc'
 
 ; rcx = ptr, rdx = min, r8 = max
-validate_year:
-	push rbx
-	push rsi
-	push rdi
+proc validate_year uses rbx rsi rdi
 	mov rbx, rcx
 	mov rsi, rdx
 	mov rdi, r8
 	mov BYTE [error_byte], 0
 	call parse_u64_cstr
 	cmp BYTE [error_byte], PARSE_INT_ERROR
-	je validate_year_false
+	je .false
 	sub rcx, rbx
 	cmp rcx, 4
-	jne validate_year_false
+	jne .false
 	cmp rax, rsi
-	jb validate_year_false
+	jb .false
 	cmp rax, rdi
-	ja validate_year_false
+	ja .false
 	mov rax, 1
-	jmp validate_year_exit
-validate_year_false:
+	jmp .exit
+ .false:
 	xor rax, rax
-validate_year_exit:
-	pop rdi
-	pop rsi
-	pop rbx
+ .exit:
 	ret
+endp
 
 validate_byr:
 	mov rdx, 1920
@@ -82,76 +63,74 @@ validate_eyr:
 	call validate_year
 	ret
 
-validate_hgt:
-	push rbx
+proc validate_hgt uses rbx
 	mov rbx, rcx
 	mov BYTE [error_byte], 0
 	call parse_u64_cstr
 	cmp BYTE [error_byte], PARSE_INT_ERROR
-	je validate_hgt_false
+	je .false
 	cmp BYTE [rcx], 0x63
-	je validate_hgt_cm
+	je .cm
 	cmp BYTE [rcx], 0x69
-	jne validate_hgt_false
+	jne .false
 	cmp BYTE [rcx + 1], 0x6e
-	jne validate_hgt_false
+	jne .false
 	cmp rax, 59
-	jb validate_hgt_false
+	jb .false
 	cmp rax, 76
-	ja validate_hgt_false
-validate_hgt_true:
+	ja .false
+ .true:
 	mov rax, 1
-	jmp validate_hgt_exit
-validate_hgt_cm:
+	jmp .exit
+ .cm:
 	cmp BYTE [rcx + 1], 0x6d
-	jne validate_hgt_false
+	jne .false
 	cmp rax, 150
-	jb validate_hgt_false
+	jb .false
 	cmp rax, 193
-	jbe validate_hgt_true
-validate_hgt_false:
+	jbe .true
+ .false:
 	xor rax, rax
-validate_hgt_exit:
-	pop rbx
+ .exit:
 	ret
+endp
 
 validate_hcl:
 	cmp BYTE [rcx], 0x23
-	jne validate_hcl_false
+	jne .false
 	lea rdx, [rcx + 7]
 	mov rax, 1
-validate_hcl_loop:
+ .loop:
 	inc rcx
 	cmp rcx, rdx
-	je validate_hcl_exit
+	je .exit
 	mov r8b, BYTE [rcx]
 	cmp r8b, 0x30
-	jb validate_hcl_false
+	jb .false
 	cmp r8b, 0x39
-	jbe validate_hcl_loop
+	jbe .loop
 	cmp r8b, 0x61
-	jb validate_hcl_false
+	jb .false
 	cmp r8b, 0x66
-	jbe validate_hcl_loop
-validate_hcl_false:
+	jbe .loop
+ .false:
 	xor rax, rax
-validate_hcl_exit:
+ .exit:
 	ret
 
-validate_ecl:
+proc validate_ecl uses rbx
 	sub rsp, 16
-	push rbx
 	mov rbx, rcx
 	call strlen
 	cmp rax, 3
-	je validate_ecl_good_len
+	je .good_len
 	mov rcx, rbx
 	mov rdx, 0x20
 	call strfind
 	sub rax, rbx
 	cmp rax, 3
-	jne validate_ecl_false
-validate_ecl_good_len:
+	jne .false
+ .good_len:
 	mov eax, DWORD [rbx]
 	mov DWORD [rsp + 8], eax
 	mov BYTE [rsp + 11], 0
@@ -160,51 +139,48 @@ validate_ecl_good_len:
 	mov r8, QWORD [eye_color_count]
 	call strlist_contains
 	cmp rax, 0
-	je validate_ecl_false
+	je .false
 	mov rax, 1
-	jmp validate_ecl_exit
-validate_ecl_false:
+	jmp .exit
+ .false:
 	xor rax, rax
-validate_ecl_exit:
-	pop rbx
+ .exit:
 	add rsp, 16
 	ret
+endp
 
 validate_pid:
 	xor r8, r8
-validate_pid_loop:
+ .loop:
 	cmp BYTE [rcx], 0x20
-	je validate_pid_done
+	je .done
 	cmp BYTE [rcx], 0x0
-	je validate_pid_done
+	je .done
 	cmp BYTE [rcx], 0x30
-	jb validate_pip_false
+	jb .false
 	cmp BYTE [rcx], 0x39
-	ja validate_pip_false
+	ja .false
 	inc r8
 	inc rcx
-	jmp validate_pid_loop
-validate_pid_done:
+	jmp .loop
+ .done:
 	mov rax, 1
 	cmp r8, 9
-	je validate_pid_exit
-validate_pip_false:
+	je .exit
+ .false:
 	xor rax, rax
-validate_pid_exit:
+ .exit:
 	ret
 
 ; rcx = ptr to input
-valid_passport:
-	push rbx
-	push rsi
-	push rdi
+proc valid_passport uses rbx rsi rdi
 	xor rsi, rsi
 	xor rdi, rdi
 	mov rbx, rcx
 	mov dl, 0xA
 	mov r8b, 0x20
 	call strreplace ; Replace '\n' with ' '
-valid_passport_loop:
+ .loop:
 	mov rcx, rbx
 	mov dl, 0x3a ; ':'
 	call strfind
@@ -215,7 +191,7 @@ valid_passport_loop:
 	mov r8, QWORD [field_count]
 	call strlist_contains
 	cmp rax, 0
-	je valid_passport_next
+	je .next
 	add rsi, 1
 	lea rcx, [requred_fields]
 	sub rax, rcx
@@ -224,65 +200,55 @@ valid_passport_loop:
 	mov rcx, rbx
 	call QWORD [rax]
 	cmp eax, 0
-	je valid_passport_next
-valid_passport_valid_field:
+	je .next
+ .valid_field:
 	inc rdi
-valid_passport_next:
+ .next:
 	mov rcx, rbx
 	mov dl, 0x20
 	call strfind
 	cmp rax, 0
-	je valid_passport_exit
+	je .exit
 	lea rbx, [rax + 1]
-	jmp valid_passport_loop
-valid_passport_exit:
+	jmp .loop
+ .exit:
 	cmp rsi, 7
 	sete al
 	cmp rdi, 7
 	sete cl
-	pop rdi
-	pop rsi
-	pop rbx
 	ret
+endp
 
 ; rcx = input buffer
 ; rdx = input count
-parse:
+proc parse uses r12 rbx rsi rdi
 	sub rsp, 8
-	push r12
-	push rbx
-	push rsi
-	push rdi
 	mov rbx, rcx 
 	mov rsi, rdx
 	xor rdi, rdi
-parse_loop:
+ .loop:
 	cmp rsi, 0
-	je parse_exit
+	je .exit
 	mov rcx, rbx
 	call strlen
 	mov rcx, rbx
 	lea rbx, [rbx + rax + 2]
 	call valid_passport
 	cmp al, 0
-	je parse_loop_next
+	je .loop_next
 	inc rdi
 	cmp cl, 0
-	je parse_loop_next
+	je .loop_next
 	inc r12
-parse_loop_next:
+ .loop_next:
 	dec rsi
-	jmp parse_loop
-parse_exit:
+	jmp .loop
+ .exit:
 	mov rax, rdi
 	mov rcx, r12
-	pop rdi
-	pop rsi
-	pop rbx
-	pop r12
 	add rsp, 8
 	ret
-
+endp
 
 main:
 	sub rsp, 32
@@ -298,7 +264,7 @@ main:
 	call print_u64
 	mov rcx, rsi
 	call print_u64
-main_exit:
+ .exit:
 	pop rsi
 	add rsp, 32
 	ret
