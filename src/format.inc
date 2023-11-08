@@ -47,4 +47,3 @@ macro extern_call fn_name, [args] {
 		\invoke fn_name, args
 	\}
 }
-

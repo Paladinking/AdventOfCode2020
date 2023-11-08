@@ -6,24 +6,21 @@ define INVALID_SIZE 102
 if defined COFF_IMAGE
 section '.idata' import data readable
 
-	library kernel,'KERNEL32.DLL'
-	import kernel,\
-		ExitProcess, 'ExitProcess',\
-		WriteFile, 'WriteFile',\
-		GetStdHandle, 'GetStdHandle',\
-		GetLastError, 'GetLastError',\
-		CreateFileA, 'CreateFileA',\
-		ReadFile, 'ReadFile',\
-		GetProcessHeap, 'GetProcessHeap',\
-		GetFileSizeEx, 'GetFileSizeEx',\
-		HeapAlloc, 'HeapAlloc',\
-		HeapFree, 'HeapFree',\
-		CloseHandle, 'CloseHandle'
-
+library kernel,'KERNEL32.DLL'
+import kernel,\
+	ExitProcess, 'ExitProcess',\
+	GetStdHandle, 'GetStdHandle',\
+	GetLastError, 'GetLastError',\
+	CreateFileA, 'CreateFileA',\
+	ReadFile, 'ReadFile',\
+	GetProcessHeap, 'GetProcessHeap',\
+	GetFileSizeEx, 'GetFileSizeEx',\
+	HeapAlloc, 'HeapAlloc',\
+	HeapFree, 'HeapFree',\
+	CloseHandle, 'CloseHandle'
 
 else
 	extrn ExitProcess
-	extrn WriteFile
 	extrn GetStdHandle
 	extrn GetLastError
 	extrn CreateFileA
@@ -43,3 +40,5 @@ section '.bss' readable writeable
 
 	file_size: rq 1
 	file_buffer: rq 1
+
+export_symbol error_byte, process_heap, stdout, file_buffer, file_size

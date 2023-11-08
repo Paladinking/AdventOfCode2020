@@ -2,3 +2,4 @@
 *.exe 
 .gdbinit
 test.asm
+input/input_test.txt

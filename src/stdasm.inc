@@ -1,6 +1,7 @@
 export_func file_open, file_read, print, strlen, memcmp, memcopy, split, split_at, split_on,\
-	parse_u64_cstr, parse_i64_cstr, heap_alloc, heap_free, format_u64, print_u64, memset, memmove,\
-	strcmp, strreplace, strfind, strlist_contains, stack_alloc, chkstk, setup_main, setup
+	parse_u64_cstr, parse_i64_cstr, heap_alloc, heap_free, format_u64, print_u64, memset, memreplace,\
+	memmove, memcount, strcmp, strreplace, strfind, strlist_contains, stack_alloc, chkstk,\
+	setup_main, setup
 
 include 'parse.inc'	
 
@@ -309,6 +310,20 @@ memset:
  .exit:
 	ret
 
+; rcx = ptr, dl = byte to write
+; r8 = number of characters, r9b = what to replace
+memreplace:
+	cmp r8, 0
+	je .exit
+	dec r8
+	inc rcx
+	cmp BYTE [rcx - 1], r9b
+	jne memreplace
+	mov BYTE [rcx - 1], dl
+	jmp memreplace
+ .exit:
+	ret
+
 ; Move r8 potentialy overlapping characters from rcx to rdx
 memmove:
 	cmp rcx, rdx
@@ -334,6 +349,22 @@ memmove:
 	inc rdx
 	dec r8
 	jmp .greater
+ .exit:
+	ret
+
+; rcx = ptr, dl = byte to count
+; r8 = number of characters
+memcount:
+	xor rax, rax
+ .loop:
+	cmp r8, 0
+	je .exit
+	dec r8
+	inc rcx
+	cmp BYTE [rcx - 1], dl
+	jne .loop
+	inc rax
+	jmp .loop
  .exit:
 	ret
 
