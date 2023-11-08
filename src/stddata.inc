@@ -3,8 +3,6 @@
 define PARSE_INT_ERROR 101
 define INVALID_SIZE 102
 
-	error_byte: db 0
-
 if defined COFF_IMAGE
 section '.idata' import data readable
 
@@ -39,6 +37,7 @@ end if
 
 
 section '.bss' readable writeable
+	error_byte: rb 1
 	process_heap: rq 1
 	stdout: rq 1
 

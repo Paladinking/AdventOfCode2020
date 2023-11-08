@@ -425,7 +425,7 @@ endp
 
 error_exit:
 	mov rcx, 9
-	call ExitProcess
+	extern_call ExitProcess
 	
 
 ; rcx = input lines
