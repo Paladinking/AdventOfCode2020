@@ -27,9 +27,9 @@ goto :exit
 
 :build_day
 echo Building day %1...
-fasm -d COFF_IMAGE=TRUE src\day%1f.asm bin\day%1f.exe
-fasm src\day%1f.asm build\day%1f.obj
-gcc build\day%1f.obj -nostdlib -lkernel32 --entry=setup_main -o bin\day%1f-gcc.exe
+fasm -d COFF_IMAGE=TRUE src\day%1.asm bin\day%1.exe
+fasm src\day%1.asm build\day%1.obj
+gcc build\day%1.obj -nostdlib -lkernel32 --entry=setup_main -o bin\day%1-gcc.exe
 exit /b
 :exit
 echo Done

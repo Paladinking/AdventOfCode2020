@@ -42,8 +42,8 @@
 ; 	 "s2:l i2: "
 ;		wavy bronze bags contain 3 pale black bags, 5 bright turquoise bags, 4 pale orange bags.
 
-export_func parse_line, pattern_size, skip_terminator, find_string, error_exit, parse_lines
-
+export_func parse_line, pattern_size, skip_terminator, find_string, parse_lines
+export_symbol error_exit
 
 ; rcx = input buffer
 ; rdx = output buffer
@@ -444,7 +444,7 @@ proc parse_lines uses rsi rdi rbx r12 r13 r14
 	xor r14, r14
  .loop:
 	cmp r14, r12
-	je .end
+	je .exit
 	mov rcx, rsi
 	mov rax, r14
 	mul r13
@@ -455,7 +455,7 @@ proc parse_lines uses rsi rdi rbx r12 r13 r14
 	lea rsi, [rax + 1] ; Skip null-terminator
 	inc r14
 	jmp .loop
- .end:
+ .exit:
 	add rsp, 8
 	ret
 endp

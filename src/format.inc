@@ -25,9 +25,16 @@ macro import_func [name] {
 	\}
 }
 
+macro export_symbol [name] {
+	match =COFF_IMAGE, COFF_IMAGE \{
+		\public name
+	\}
+}
+
 macro export_func [name] {
 	match =COFF_IMAGE, COFF_IMAGE \{
 		\public name
+		\public name#.exit
 	\}
 }
 

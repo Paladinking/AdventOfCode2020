@@ -46,6 +46,7 @@ print:
 	mov QWORD [rsp + 72], r8  ; Zero arguments
 	mov rax, 0x8 ; syscall number NtWriteFile
 	syscall
+ .exit:
 	add rsp, 104
 	ret
 
@@ -231,6 +232,7 @@ proc heap_alloc
 	xor rdx, rdx
 	mov rcx, QWORD [process_heap]
 	extern_call HeapAlloc
+ .exit:
 	ret
 endp
 
@@ -240,6 +242,7 @@ proc heap_free
 	xor rdx, rdx
 	mov rcx, QWORD [process_heap]
 	extern_call HeapFree
+ .exit:
 	ret
 endp
 
@@ -291,6 +294,7 @@ print_u64:
 	lea rdx, [rax + 1]
 	mov BYTE [rcx + rax], 0xA
 	call print	
+ .exit:
 	add rsp, 72
 	ret
 
@@ -355,14 +359,14 @@ strcmp:
 ; rcx = ptr to string, dl = BYTE to replace, r8b = BYTE to write
 strreplace:
 	cmp BYTE [rcx], 0x0
-	je .end
+	je .exit
 	cmp BYTE [rcx], dl
 	jne .next
 	mov BYTE [rcx], r8b
  .next:
 	inc rcx
 	jmp strreplace
- .end:
+ .exit:
 	ret
 
 ; rcx = null-terminated input string
@@ -714,6 +718,7 @@ stack_alloc:
 	sub rax, 8	 ; Include ret address
 	call chkstk
 	sub rsp, rax
+ .exit:
 	mov rax, QWORD [rsp + rax]
 	jmp rax
 
@@ -722,14 +727,14 @@ chkstk:
 	push rax
 	cmp  rax, 0x1000
 	lea  rcx, [rsp + 0x18]
-	jb .end
+	jb .exit
  .loop:
 	sub rcx, 0x1000
 	or qword [rcx], 0
 	sub rax, 0x1000
 	cmp rax, 0x1000
 	ja .loop
- .end:
+ .exit:
 	sub rcx,rax
 	or qword [rcx], 0
 	pop rax
@@ -742,6 +747,7 @@ setup_main:
 	mov rcx, QWORD [file_buffer]
 	mov rdx, QWORD [file_size]
 	call main
+ .exit:
 	add rsp, 40
 	ret
 
@@ -813,38 +819,3 @@ proc setup
  .exit:
 	ret
 endp
-
-
-
-	
-if defined NOT_DEFINED_SYMBOL
-
-; sorts a list of qword
-; rcx = ptr to first element
-; rdx = length of input
-listq_sort:
-	push rbp
-	mov rbp, rsp
-	mov r8, rdx
-	lea rax, [rdx * 8]
-	call stack_alloc
-	mov rdx, rsp
-	call mergesort_qword
- .exit:
-	mov rsp, rbp
-	pop rbp
-	ret
-
-
-print_:
-	sub rsp, 40
-	mov r8, rdx
-	mov rdx, rcx
-	mov rcx, QWORD [stdout]
-	mov r9, 0
-	mov QWORD [rsp + 32], 0
-	call WriteConsoleA
-	add rsp, 40
-	ret
-
-end if
