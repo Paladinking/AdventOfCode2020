@@ -1,6 +1,6 @@
 export_func file_open, file_read, print, strlen, memcmp, memcopy, split, split_at, split_on,\
 	parse_u64_cstr, parse_i64_cstr, heap_alloc, heap_free, format_u64, print_u64, memset, memreplace,\
-	memmove, memcount, strcmp, strreplace, strfind, strlist_contains, stack_alloc, chkstk,\
+	memmove, memcount, strcmp, strreplace, strfind, strlist_contains, lcm, stack_alloc, chkstk,\
 	setup_main, setup
 
 include 'parse.inc'	
@@ -738,6 +738,27 @@ listn_sort_dec 2, w, WORD, cx, dx
 listn_sort_dec 4, d, DWORD, ecx, edx
 listn_sort_dec 8, q, QWORD, rcx, rdx
 
+; rcx = a, rdx = b
+; rax => lcm(a, b)
+lcm:
+	mov r8, rcx
+	mov r9, rdx
+	mov r10, rdx
+ .loop:
+	cmp r10, 0
+	je .exit
+	mov rax, rcx
+	xor rdx, rdx
+	div r10
+	mov rcx, r10
+	mov r10, rdx
+	jmp .loop
+ .exit:
+	mov rax, r9
+	xor rdx, rdx
+	div rcx
+	mul r8
+	ret
 
 ; Does not even pretend to follow calling conventions...
 ; rax = stack space to allocate
